@@ -145,36 +145,11 @@ bool key_down(igl::viewer::Viewer &viewer, unsigned char key, int mods)
 
 int main(int argc, char *argv[])
 {
-
-/*
   using namespace Eigen;
   using namespace std;
-  igl::readOBJ("/home/xiuyan/Desktop/eight-bar.obj",V,F);
+  igl::readOBJ("../objects/eight-bar.obj",V,F);
   U=V;
-  igl::readTGF("/home/xiuyan/Desktop/middle.tgf",C,BE);
-
-  // retrieve parents for forward kinematics
-  igl::directed_edge_parents(BE,P);
-  RotationList rest_pose;
-  igl::directed_edge_orientations(C,BE,rest_pose);
-  poses.resize(4,RotationList(4,Quaterniond::Identity()));
-
-  // poses[1] // twist
-  const Quaterniond twist(AngleAxisd(igl::PI,Vector3d(1,0,0)));
-  poses[1][2] = rest_pose[2]*twist*rest_pose[2].conjugate();
-  const Quaterniond bend(AngleAxisd(-igl::PI*0.7,Vector3d(0,0,1)));
-  poses[3][2] = rest_pose[2]*bend*rest_pose[2].conjugate();
-
-  igl::readDMAT("/home/xiuyan/Desktop/middle-weights.dmat",W);
-  igl::lbs_matrix(V,W,M);
-*/
-// instead of these weights (above), use BBW
-
-  using namespace Eigen;
-  using namespace std;
-  igl::readOBJ("/home/xiuyan/Desktop/eight-bar.obj",V,F);
-  U=V;
-  igl::readTGF("/home/xiuyan/Desktop/middle.tgf",C,BE);
+  igl::readTGF("../objects/eight-bar-skeleton.tgf",C,BE);
 
   // retrieve parents for forward kinematics
   igl::directed_edge_parents(BE,P);
@@ -198,7 +173,7 @@ int main(int argc, char *argv[])
   // compute BBW weights matrix
   igl::BBWData bbw_data;
   // only a few iterations for sake of demo
-  bbw_data.active_set_params.max_iter = 100;
+  bbw_data.active_set_params.max_iter = 16;
   bbw_data.verbosity = 2;
   if(!igl::bbw(V,F,b,bc,bbw_data,W))
   {
