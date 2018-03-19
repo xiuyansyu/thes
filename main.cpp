@@ -8,6 +8,7 @@
 #include <igl/readDMAT.h>
 #include <igl/readOBJ.h>
 #include <igl/readTGF.h>
+#include <igl/readNODE.h>
 #include <igl/boundary_conditions.h>
 #include <igl/colon.h>
 #include <igl/column_to_quats.h>
@@ -21,36 +22,6 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
-
-/*
-
- Get weights from tutorial 403
-
-* tutorial 403 operates on a mesh file.
-Most libigl headers are tailored to operate on a generic triangle mesh 
-stored in:
-	* n-by-3 matrix of vertex positions V 
-	* m-by-3 matrix of triangle indices F.
-
-Pre-computation of weights, then do LBS or dQS like this file is doing.
-
-Decrease number of triangles in mesh. [done: use eight-bar.obj]
-
-Bar with triangles on the surface
-With tetgen, the surfaces will be filled with objects on the inside 
-Deformations to the bar should also apply to the tetrahedrals inside.
-
-
-Exporting tetgen files into dmat -> can read into MATLAB to draw.
-
-There is a chance that the Bounded biharmonic weight calculation already
-does this -- tetrahedralises the mesh and computes for all points, then only
-returns the surface points -- check if true.
-
-Tetrahedral "volume" is required for physics simulation later.
-
-*/
-
 
 
 typedef 
@@ -66,6 +37,111 @@ double anim_t = 0.0;
 double anim_t_dir = 0.015;
 bool use_dqs = false;
 bool recompute = true;
+
+//Written by Desai Chen for SIMIT
+int openIfstream(std::ifstream &in, std::string filename)
+{
+    in.open(filename);
+    if(!in.good()){
+        std::cout<<"Cannot read "<<filename<<"\n";
+        return -1;
+    }
+    return 0;
+}
+
+int loadTet(Eigen::MatrixXd &V, Eigen::MatrixXi &F, std::istream & nodeIn, std::istream & eleIn) {
+    
+    //load vertices
+    int intVal;
+    nodeIn>>intVal;
+    
+    V.resize(intVal,3); //resize vertex array
+    std::string line;
+    unsigned int cnt = 0;
+    //discard rest of the first line.
+    getline(nodeIn,line);
+    while(1) {
+        getline(nodeIn,line);
+        if(nodeIn.eof()) {
+            break;
+        }
+        //skip empty lines
+        if(line.size()<3) {
+            continue;
+        }
+        //skip comments
+        if(line.at(0)=='#') {
+            continue;
+        }
+        std::stringstream ss(line);
+        
+        ss>>intVal;
+        for(int ii = 0;ii<3;ii++){
+            ss>>V(cnt,ii);
+        }
+        cnt ++ ;
+        if(cnt>=V.rows()){
+            break;
+        }
+    }
+    
+    //load elements
+    eleIn>>intVal;
+    F.resize(intVal, 4); //resize face list
+    
+    int nV=0;
+    eleIn>>nV;
+    cnt = 0;
+    getline(eleIn,line);
+    while(1) {
+        getline(eleIn,line);
+        if(eleIn.eof()) {
+            break;
+        }
+        if(line.size()<3) {
+            continue;
+        }
+        if(line.at(0)=='#') {
+            continue;
+        }
+        std::stringstream ss(line);
+        ss>>intVal;
+        
+        //e[cnt].resize(nV);
+        for(int ii = 0;ii<nV;ii++){
+            ss>>F(cnt,ii);
+        }
+        
+        cnt ++ ;
+        if(cnt>=F.rows()){
+            break;
+        }
+    }
+    return 0;
+}
+
+//Lions share of code borrowed from Desai Chen for SIMIT
+void readTetgen(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const std::string nodeFile, const std::string eleFile) {
+    
+    std::cout<<"Reading tetrahedral mesh from "<<nodeFile<<" and "<<eleFile<<"\n";
+    
+    std::ifstream nodeIn, eleIn;
+    
+    int status = openIfstream(nodeIn, nodeFile);
+    if(status<0){
+        return;
+    }
+    status = openIfstream(eleIn, eleFile);
+    if(status<0){
+        return;
+    }
+    
+    status = loadTet(V, F, nodeIn, eleIn);
+    nodeIn.close();
+    eleIn.close();
+    return;
+}
+
 
 bool pre_draw(igl::viewer::Viewer & viewer)
 {
@@ -147,9 +223,12 @@ int main(int argc, char *argv[])
 {
   using namespace Eigen;
   using namespace std;
-  igl::readOBJ("../objects/eight-bar.obj",V,F);
+  
+  readTetgen(V,F,"../objects/eight-bar.1.node","../objects/eight-bar.1.ele");
+  //igl::readOBJ("../objects/eight-bar.1.smesh",V,F);
   U=V;
   igl::readTGF("../objects/eight-bar-skeleton.tgf",C,BE);
+
 
   // retrieve parents for forward kinematics
   igl::directed_edge_parents(BE,P);
@@ -193,9 +272,6 @@ int main(int argc, char *argv[])
   igl::normalize_row_sums(W,W);
   // precompute linear blend skinning matrix
   igl::lbs_matrix(V,W,M);
-
-
-///////
 
 
   // Plot the mesh with pseudocolors
