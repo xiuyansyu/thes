@@ -16,6 +16,10 @@
 #include <igl/normalize_row_sums.h>
 #include <igl/viewer/Viewer.h>
 #include <igl/bbw.h>
+#include <igl/combine.h>
+#include <igl/writeDMAT.h>
+#include <igl/writeOBJ.h>
+#include <igl/writePLY.h>
 
 #include <Eigen/Geometry>
 #include <Eigen/StdVector>
@@ -29,8 +33,8 @@ typedef
   RotationList;
 
 const Eigen::RowVector3d sea_green(70./255.,252./255.,167./255.);
-Eigen::MatrixXd V,W,C,U,M;
-Eigen::MatrixXi F,BE;
+Eigen::MatrixXd Va,Vb,V,W,C,U,M;
+Eigen::MatrixXi Fa,Fb,F,BE;
 Eigen::VectorXi P;
 std::vector<RotationList > poses;
 double anim_t = 0.0;
@@ -147,6 +151,10 @@ bool pre_draw(igl::viewer::Viewer & viewer)
 {
   using namespace Eigen;
   using namespace std;
+
+//  igl::writeOBJ("/home/xiuyan/thes/objects/skin-bar.obj",U,F);
+//  igl::writePLY("/home/xiuyan/thes/objects/skin-bar.ply",U,F);
+
   if(recompute)
   {
     // Find pose interval
@@ -174,6 +182,7 @@ bool pre_draw(igl::viewer::Viewer & viewer)
       T.block(e*(dim+1),0,dim+1,dim) =
         a.matrix().transpose().block(0,0,dim+1,dim);
     }
+    igl::writeDMAT("/home/xiuyan/thes/objects/skin-handles.dmat",T);
     // Compute deformation via LBS as matrix multiplication
     if(use_dqs)
     {
@@ -215,6 +224,7 @@ bool key_down(igl::viewer::Viewer &viewer, unsigned char key, int mods)
     case ' ':
       viewer.core.is_animating = !viewer.core.is_animating;
       return true;
+
   }
   return false;
 }
@@ -223,9 +233,13 @@ int main(int argc, char *argv[])
 {
   using namespace Eigen;
   using namespace std;
-  
   readTetgen(V,F,"../objects/eight-bar.1.node","../objects/eight-bar.1.ele");
-  //igl::readOBJ("../objects/eight-bar.1.smesh",V,F);
+//  igl::readOBJ("../objects/skin-bar.obj",V,F);
+
+//  readTetgen(Va,Fa,"../objects/eight-bar.1.node","../objects/eight-bar.1.ele");
+//  igl::readOBJ("../objects/eight-bar.obj",Vb,Fb);
+//  igl::combine<Eigen::MatrixXd,Eigen::MatrixXi>({Va,Vb},{Fa,Fb},V,F);
+
   U=V;
   igl::readTGF("../objects/eight-bar-skeleton.tgf",C,BE);
 
@@ -273,6 +287,9 @@ int main(int argc, char *argv[])
   // precompute linear blend skinning matrix
   igl::lbs_matrix(V,W,M);
 
+  // Write weight matrix to file (to be used in GAUSS example)
+  igl::writeDMAT("../objects/eight-bar-lbs-weights.dmat",M);
+  igl::writeDMAT("../objects/eight-bar-weights.dmat",W);
 
   // Plot the mesh with pseudocolors
   igl::viewer::Viewer viewer;
